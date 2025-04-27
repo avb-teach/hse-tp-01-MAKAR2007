@@ -1,60 +1,51 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env python3.12
+# обход директорий — https://docs.python.org/3/library/os.html#os.walk
+# относительный путь и части — https://docs.python.org/3/library/pathlib.html#pathlib.Path.relative_to
+# копирование с метаданными — https://docs.python.org/3/library/shutil.html#shutil.copy2
+# уникальные имена (_1, _2…) — https://stackoverflow.com/a/15542070
 
-# find -print0 / read -d '' — https://www.gnu.org/software/findutils/manual/html_node/find_002dprint0.html
-# IFS='/' read -a parts     — https://mywiki.wooledge.org/BashFAQ/005
-# ${x%.*} и ${x##*.}        — https://tldp.org/LDP/abs/html/refcards.html
-# суффикс _1 _2 …           — https://stackoverflow.com/a/15542070
+import sys, os, shutil
+from pathlib import Path
 
-if [ $# -lt 2 ]; then
-  echo "usage: $0 <input> <output> [--max_depth N]"
-  exit 1
-fi
+def main():
+    if len(sys.argv) < 3:
+        print(f"usage: {sys.argv[0]} <input_dir> <output_dir> [--max_depth N]", file=sys.stderr)
+        sys.exit(1)
 
-IN="$1"
-OUT="$2"
-shift 2
+    inp = Path(sys.argv[1])
+    out = Path(sys.argv[2])
+    md = None
+    if len(sys.argv) >= 5 and sys.argv[3] == "--max_depth":
+        try:
+            md = int(sys.argv[4])
+        except:
+            print("Error: --max_depth requires an integer", file=sys.stderr)
+            sys.exit(1)
+    if md is None:
+        md = 1
 
-MAX=""
-if [ $# -ge 2 ] && [ "$1" = "--max_depth" ]; then
-  MAX="$2"
-fi
+    if not inp.is_dir():
+        print("input dir not found", file=sys.stderr)
+        sys.exit(1)
+    out.mkdir(parents=True, exist_ok=True)
 
-[ -d "$IN" ] || { echo "input dir not found"; exit 1; }
-mkdir -p "$OUT"
+    for root, _, files in os.walk(inp):
+        for name in files:
+            src = Path(root) / name
+            rel = src.relative_to(inp)
+            parts = rel.parts
+            if len(parts) > md:
+                parts = parts[-md:]
+            dest_dir = out.joinpath(*parts[:-1])
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            fname = parts[-1]
+            dst = dest_dir / fname
+            base, ext = os.path.splitext(fname)
+            i = 1
+            while dst.exists():
+                dst = dest_dir / f"{base}_{i}{ext}"
+                i += 1
+            shutil.copy2(src, dst)
 
-find "$IN" -type f -print0 | while IFS= read -r -d '' f; do
-  rel="${f#$IN/}"
-  IFS='/' read -ra parts <<< "$rel"
-  [ -n "$MAX" ] || MAX=1
-  len=${#parts[@]}
-  if [ "$len" -gt "$MAX" ]; then
-    start=$((len - MAX))
-    newparts=( "${parts[@]:start:MAX}" )
-  else
-    newparts=( "${parts[@]}" )
-  fi
-  dst="$OUT"
-  for ((i=0; i<${#newparts[@]}-1; i++)); do
-    dst="$dst/${newparts[i]}"
-  done
-  mkdir -p "$dst"
-  base="${newparts[-1]}"
-  dst="$dst/$base"
-  dst_dir="$OUT$dir"
-  mkdir -p "$dst_dir"
-  dst="$dst_dir/$base"
-
-  if [ -e "$dst" ]; then
-    ext="${base##*.}"
-    name="${base%.*}"
-    [ "$ext" = "$base" ] && { name="$base"; ext=""; }
-    n=1
-    while [ -e "$dst_dir/${name}_${n}${ext:+.$ext}" ]; do
-      n=$((n+1))
-    done
-    dst="$dst_dir/${name}_${n}${ext:+.$ext}"
-  fi
-
-  cp "$f" "$dst"
-done
+if __name__ == "__main__":
+    main()
