@@ -29,8 +29,9 @@ find "$IN" -type f -print0 | while IFS= read -r -d '' f; do
 
   dir=""
     IFS='/' read -ra parts <<< "$pdir"
-    if [ ${#parts[@]} -gt "$MAX" ]; then
-        for ((i=${#parts[@]}-MAX; i<${#parts[@]}; i++)); do
+    keep=$((MAX-1))               
+    if [ ${#parts[@]} -gt "$keep" ]; then
+        for ((i=${#parts[@]}-keep; i<${#parts[@]}; i++)); do
             dir="$dir/${parts[$i]}"
         done
     else
