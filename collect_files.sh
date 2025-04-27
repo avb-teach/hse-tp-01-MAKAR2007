@@ -28,16 +28,17 @@ find "$IN" -type f -print0 | while IFS= read -r -d '' f; do
   base=$(basename "$rel")
 
   dir=""
-  if [ -n "$MAX" ]; then
-    pdir=$(dirname "$rel")
-    if [ "$pdir" != "." ]; then
-      IFS='/' read -ra parts <<< "$pdir"
-      for ((i=0; i<MAX && i<${#parts[@]}; i++)); do
-        d=${parts[$i]}
-        [ -n "$d" ] && dir="$dir/$d"
-      done
+    IFS='/' read -ra parts <<< "$pdir"
+    if [ ${#parts[@]} -gt "$MAX" ]; then
+        for ((i=${#parts[@]}-MAX; i<${#parts[@]}; i++)); do
+            dir="$dir/${parts[$i]}"
+        done
+    else
+        for p in "${parts[@]}"; do
+            dir="$dir/$p"
+        done
     fi
-  fi
+  
 
   dst_dir="$OUT$dir"
   mkdir -p "$dst_dir"
