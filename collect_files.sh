@@ -25,26 +25,22 @@ mkdir -p "$OUT"
 
 find "$IN" -type f -print0 | while IFS= read -r -d '' f; do
   rel="${f#$IN/}"
-  base=$(basename "$rel")
-
-  dir=""
-    IFS='/' read -ra parts <<< "$pdir"
-    cur_depth=$(( ${#parts[@]} + 1 ))
-    if [ -n "$MAX" ] && [ "$cur_depth" -gt "$MAX" ]; then
-    drop=$(( cur_depth - MAX ))       
-    dir=""
-    for ((i=drop; i<${#parts[@]}; i++)); do
-        d=${parts[$i]}
-        [ -n "$d" ] && dir="$dir/$d"
-    done
-    else
-    dir=""
-    for d in "${parts[@]}"; do
-        dir="$dir/$d"
-    done
-    fi
-  
-
+  IFS='/' read -ra parts <<< "$rel"
+  [ -n "$MAX" ] || MAX=1
+  len=${#parts[@]}
+  if [ "$len" -gt "$MAX" ]; then
+    start=$((len - MAX))
+    newparts=( "${parts[@]:start:MAX}" )
+  else
+    newparts=( "${parts[@]}" )
+  fi
+  dst="$OUT"
+  for ((i=0; i<${#newparts[@]}-1; i++)); do
+    dst="$dst/${newparts[i]}"
+  done
+  mkdir -p "$dst"
+  base="${newparts[-1]}"
+  dst="$dst/$base"
   dst_dir="$OUT$dir"
   mkdir -p "$dst_dir"
   dst="$dst_dir/$base"
