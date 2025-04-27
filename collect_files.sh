@@ -29,15 +29,19 @@ find "$IN" -type f -print0 | while IFS= read -r -d '' f; do
 
   dir=""
     IFS='/' read -ra parts <<< "$pdir"
-    keep=$((MAX-1))               
-    if [ ${#parts[@]} -gt "$keep" ]; then
-        for ((i=${#parts[@]}-keep; i<${#parts[@]}; i++)); do
-            dir="$dir/${parts[$i]}"
-        done
+    cur_depth=$(( ${#parts[@]} + 1 ))
+    if [ -n "$MAX" ] && [ "$cur_depth" -gt "$MAX" ]; then
+    drop=$(( cur_depth - MAX ))       
+    dir=""
+    for ((i=drop; i<${#parts[@]}; i++)); do
+        d=${parts[$i]}
+        [ -n "$d" ] && dir="$dir/$d"
+    done
     else
-        for p in "${parts[@]}"; do
-            dir="$dir/$p"
-        done
+    dir=""
+    for d in "${parts[@]}"; do
+        dir="$dir/$d"
+    done
     fi
   
 
