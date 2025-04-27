@@ -1,8 +1,13 @@
 #!/bin/bash
 set -e
 
+# find -print0 / read -d '' — https://www.gnu.org/software/findutils/manual/html_node/find_002dprint0.html
+# IFS='/' read -a parts     — https://mywiki.wooledge.org/BashFAQ/005
+# ${x%.*} и ${x##*.}        — https://tldp.org/LDP/abs/html/refcards.html
+# суффикс _1 _2 …           — https://stackoverflow.com/a/15542070
+
 if [ $# -lt 2 ]; then
-  echo "usage: $0 <input_dir> <output_dir> [--max_depth N]" >&2
+  echo "usage: $0 <input> <output> [--max_depth N]"
   exit 1
 fi
 
@@ -15,7 +20,7 @@ if [ $# -ge 2 ] && [ "$1" = "--max_depth" ]; then
   MAX="$2"
 fi
 
-[ -d "$IN" ] || { echo "input dir not found" >&2; exit 1; }
+[ -d "$IN" ] || { echo "input dir not found"; exit 1; }
 mkdir -p "$OUT"
 
 find "$IN" -type f -print0 | while IFS= read -r -d '' f; do
@@ -24,30 +29,30 @@ find "$IN" -type f -print0 | while IFS= read -r -d '' f; do
 
   dir=""
   if [ -n "$MAX" ]; then
-    pathdir=$(dirname "$rel")
-    if [ "$pathdir" != "." ]; then
-      IFS='/' read -ra parts <<< "$pathdir"
+    pdir=$(dirname "$rel")
+    if [ "$pdir" != "." ]; then
+      IFS='/' read -ra parts <<< "$pdir"
       for ((i=0; i<MAX && i<${#parts[@]}; i++)); do
-        part=${parts[$i]}
-        [ -n "$part" ] && dir="$dir/$part"
+        d=${parts[$i]}
+        [ -n "$d" ] && dir="$dir/$d"
       done
     fi
   fi
 
-  dest_dir="$OUT$dir"
-  mkdir -p "$dest_dir"
-  dest="$dest_dir/$base"
+  dst_dir="$OUT$dir"
+  mkdir -p "$dst_dir"
+  dst="$dst_dir/$base"
 
-  if [ -e "$dest" ]; then
+  if [ -e "$dst" ]; then
     ext="${base##*.}"
     name="${base%.*}"
     [ "$ext" = "$base" ] && { name="$base"; ext=""; }
     n=1
-    while [ -e "$dest_dir/${name}_${n}${ext:+.$ext}" ]; do
+    while [ -e "$dst_dir/${name}_${n}${ext:+.$ext}" ]; do
       n=$((n+1))
     done
-    dest="$dest_dir/${name}_${n}${ext:+.$ext}"
+    dst="$dst_dir/${name}_${n}${ext:+.$ext}"
   fi
 
-  cp "$f" "$dest"
+  cp "$f" "$dst"
 done
